@@ -1,0 +1,1 @@
+geth --datadir="blockchain"  --rpc --rpcport=8545  --maxpeers 20 --rpccorsdomain="*"    --rpcapi "db,eth,net,web3,personal,web3,admin,miner,rpc,debug" --ws --netrestrict "127.0.0.1/24"  --rpcaddr="127.0.0.1" --networkid 987 --nodiscover --maxpeers 1  --targetgaslimit 0x80000000 --mine --unlock 0,1,2
