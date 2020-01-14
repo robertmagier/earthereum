@@ -1,0 +1,472 @@
+pragma solidity ^0.4.18;
+
+contract Authorized {
+
+    address internal admin;
+
+    function Authorized() {
+        admin = msg.sender;
+    }
+
+    modifier onlyAdmin() {
+        require(msg.sender == admin);
+        _;
+    }
+}
+
+library SafeMath {
+
+  /**
+  * @dev Multiplies two numbers, throws on overflow.
+  */
+  function mul(uint256 a, uint256 b) internal pure returns (uint256) {
+    if (a == 0) {
+      return 0;
+    }
+    uint256 c = a * b;
+    assert(c / a == b);
+    return c;
+  }
+
+  /**
+  * @dev Integer division of two numbers, truncating the quotient.
+  */
+  function div(uint256 a, uint256 b) internal pure returns (uint256) {
+    // assert(b > 0); // Solidity automatically throws when dividing by 0
+    // uint256 c = a / b;
+    // assert(a == b * c + a % b); // There is no case in which this doesn't hold
+    return a / b;
+  }
+
+  /**
+  * @dev Subtracts two numbers, throws on overflow (i.e. if subtrahend is greater than minuend).
+  */
+  function sub(uint256 a, uint256 b) internal pure returns (uint256) {
+    assert(b <= a);
+    return a - b;
+  }
+
+  /**
+  * @dev Adds two numbers, throws on overflow.
+  */
+  function add(uint256 a, uint256 b) internal pure returns (uint256) {
+    uint256 c = a + b;
+    assert(c >= a);
+    return c;
+  }
+}
+
+contract AegisEconomyCoin is Authorized {
+
+//*************************************************************************
+// Variables
+    using SafeMath for uint;
+    using SafeMath for uint256;
+
+    mapping (address => uint256) private Balances;
+    mapping (address => mapping (address => uint256)) private Allowances;
+    uint private releasedTokens; //tokens released by owner; This is due to the fact that totalSupply is a dynamic value changing in time.
+
+    string public standard = "AegisCoin Inflatable";
+    string public name;
+    string public symbol;
+    uint8 public decimals;
+    uint256 public initialSupply;
+    uint256 public finalSupply;
+    uint256 public inflationPeriod;
+    uint256 public inflationPeriodStart;
+    uint256 public inflationPeriodEnd;
+    address private contractAddr;
+
+    event Transfer(address indexed from, address indexed to, uint256 value);
+    event Approval(address indexed _owner, address indexed _spender, uint _value);
+//*************************************************************************************
+// End Variables
+
+//**************************************************************************************
+//Constructor
+    function AegisEconomyCoin(address beneficiaryAddress) {
+
+        require(beneficiaryAddress!=0);
+
+        /* Balances[admin] = 15000000000000000000000000; //15 million coins for a price of $0.10 each : 15000000 * 10^18 : 15000000000000000000000000 */
+        decimals = 18;
+        initialSupply = 10*10^decimals*10^6;
+        finalSupply = 500*10^decimals*10^6;
+        inflationPeriod = 50 years;
+        inflationPeriodStart = now;
+        inflationPeriodEnd = inflationPeriodStart + inflationPeriod;
+        symbol = "AGSE";
+        name = "Aegis Economy Coin";
+        beneficiary = beneficiaryAddress;
+        contractAddr = admin;
+        AegisCoinSale();
+    }
+
+//***************************************************************************************
+
+//***************************************************************************************
+// Base Token  Started ERC 20 Standards
+
+    function totalSupply() public constant returns (uint initCoinSupply) {
+        uint currentTime = 0 ;
+        uint curSupply = 0;
+        if (currentTime > inflationPeriodEnd)
+        {
+          currentTime = inflationPeriodEnd;
+        }
+
+        uint256 timeLapsed = currentTime - inflationPeriodStart;
+        uint256 timePer = timeLapsed.mul(1000000).div(inflationPeriod);
+
+        curSupply = finalSupply.sub(initialSupply).mul(timePer).div(1000000).add(initialSupply);
+        return curSupply;
+    }
+
+    function balanceOf(address _owner) public constant returns (uint256 balance) {
+        if (_owner == admin)
+        {
+          return totalSupply() - releasedTokens;
+        }
+        else {
+          return Balances[_owner];
+        }
+    }
+
+    function transfer(address _to, uint256 _value) public returns (bool success) {
+        require(balanceOf(msg.sender) >= _value);
+        if(msg.sender == admin)
+        {
+        releasedTokens = releasedTokens.add(_value);
+        }
+        else
+        {
+          Balances[msg.sender] = Balances[msg.sender].sub(_value);
+        }
+
+        if(_to == admin)
+        {
+          releasedTokens = releasedTokens.sub(_value);
+        }
+        else {
+          Balances[_to] = Balances[_to].add(_value);
+        }
+
+        Transfer(msg.sender, _to, _value);
+        return true;
+    }
+
+    function transferFrom(address _from, address _to, uint256 _value) public returns (bool success) {
+        require(Balances[_from] >= _value);
+        require(_value <= Allowances[_from][msg.sender]);
+
+
+        if(_from == admin)
+        {
+        releasedTokens = releasedTokens.add(_value);
+        }
+        else
+        {
+          Balances[_from] = Balances[_from].sub(_value);
+        }
+
+        if(_to == admin)
+        {
+          releasedTokens = releasedTokens.sub(_value);
+        }
+        else {
+          Balances[_to] = Balances[_to].add(_value);
+        }
+
+
+        Allowances[_from][msg.sender] = Allowances[_from][msg.sender].sub(_value);
+        Transfer(_from, _to, _value);
+        return true;
+    }
+
+    function approve(address _sbalanceOfpender, uint256 _value) public returns (bool success) {
+        Allowances[msg.sender][_sbalanceOfpender] = _value;
+        Approval(msg.sender, _sbalanceOfpender, _value);
+        return true;
+    }
+
+    function allowance(address _owner, address _spender) public constant returns (uint256 remaining) {
+        return Allowances[_owner][_spender];
+    }
+    //***********************************************************************************************
+    //End Base Token
+    //
+
+    function OBEFAC(address addr) onlyAdmin public {
+        beneficiary = addr;
+    }
+
+    function changeContractSenderAddress(address addr) onlyAdmin public {
+        contractAddr = addr;
+    }
+
+    function releaseTokens (address _to, uint256 _value) private returns (bool success) {
+
+        require(Balances[admin] >= _value);
+        require(Balances[_to].add(_value) >= Balances[_to]);
+
+        Balances[admin] = Balances[admin].sub(_value);
+        Balances[_to] = Balances[_to].add(_value);
+
+        Transfer(admin, _to, _value);
+
+        return true;
+    }
+
+    //***********************************************************************************************
+    //Crowd Sale Logic
+    //
+
+    enum State {
+        Fundraising,
+        Failed,
+        Successful,
+        Closed
+    }
+    State private state = State.Fundraising;
+
+    struct Contribution {
+        uint256 amount;
+        address contributor;
+    }
+    Contribution[] contributions;
+
+    uint256 private totalRaised = 0;
+    uint256 private totalRaisedInCents = 0;
+
+    uint256 private START_DATE;                          // calculate minutes upto ICO start time
+    uint256 private DEADLINE;                 //ICO Period: 6th of April - 4th of May: 29 days: 41760 minutes
+    uint256 private REFUND_END_DATE;              // 3 month refund period expiry date
+    string constant private CAMPAIGN_URL = "www.aegissmartcontracts.com";
+    uint256 constant private fundingMinimumTargetInCents = 50000000;                     //the soft cap is $500,000
+    uint256 constant private fundingMaximumTargetInCents = 150000000;                    //the hard cap is $1.5 million
+
+    uint256 private completedAt;
+    address private creator;
+    address private beneficiary;
+    uint256 private priceInCents;
+    uint256 private ETHUSD;
+    byte constant VERSION = 1;
+
+    event LogRefund(address addr, uint256 amount);
+    event LogFundingReceived(address addr, uint256 amount, uint256 currentTotal);
+    event LogWinnerPaid(address winnerAddress);
+    event LogFundingSuccessful(uint256 totalRaised);
+    event LogFunderInitialized(
+    address creator,
+    address beneficiary,
+    string url,
+    uint _fundingMaximumTargetInCents,
+    uint256 deadline);
+
+    modifier inState(State _state) {
+        if (state != _state) revert();
+        if (now < START_DATE) revert();
+        _;
+    }
+
+    modifier inRefundPeriod() {
+        if (now < DEADLINE) revert();
+        if (now > REFUND_END_DATE) revert();
+        _;
+    }
+
+    modifier refundPeriodExpired() {
+        if (state != State.Successful) {
+            if (state == State.Fundraising) revert();
+            if (state == State.Failed) {
+                if (now < REFUND_END_DATE) revert();
+            }
+        }
+        _;
+    }
+
+    function AegisCoinSale()
+    private
+    {
+        uint threeMonths = 126900;
+        creator = msg.sender;
+        uint salePeriod = 41760;
+        START_DATE = now;                          // calculate minutes upto ICO start time
+        DEADLINE = START_DATE.add(salePeriod.mul(1 minutes));                 //ICO Period: 6th of April - 4th of May: 29 days: 41760 minutes
+        REFUND_END_DATE = DEADLINE.add(threeMonths.mul(1 minutes));            // 3 months
+        priceInCents = 10;
+
+        LogFunderInitialized(
+            creator,
+            beneficiary,
+            CAMPAIGN_URL,
+            fundingMaximumTargetInCents,
+            DEADLINE);
+    }
+
+    function contribute(address _sender, uint256 getPrice, uint256 _msgvalue)
+    private
+    inState(State.Fundraising)
+        returns (uint256)
+    {
+
+        uint256 tempTotalRasiedFunds = 0;
+        uint256 tempTotalRasiedFundsInCents = 0;
+        uint256 actualValue = 0;
+        uint256 refundAmount = 0;
+        uint256 refundAmountInCents = 0;
+        uint256 fundingTokens = 0;
+
+        tempTotalRasiedFunds = totalRaised.add(_msgvalue);
+        actualValue = _msgvalue;
+
+        tempTotalRasiedFundsInCents = tempTotalRasiedFunds.mul(getPrice).div(1 ether);
+
+        if (fundingMaximumTargetInCents != 0 && tempTotalRasiedFundsInCents > fundingMaximumTargetInCents) {
+            refundAmountInCents = tempTotalRasiedFundsInCents.sub(fundingMaximumTargetInCents);
+            refundAmount = refundAmountInCents.mul(1 ether).div(getPrice);
+            actualValue = _msgvalue.sub(refundAmount);
+        }
+        contributions.push(
+            Contribution({
+                amount: actualValue,
+                contributor: _sender
+            })
+        );
+
+        if ( refundAmount > 0 ) {
+            if (!_sender.send(refundAmount)) {
+                revert();
+            }
+            LogRefund(_sender,refundAmount);
+        }
+
+        totalRaised = totalRaised.add(actualValue);
+        totalRaisedInCents = totalRaised.mul(getPrice).div(1 ether);
+
+        fundingTokens = getPrice.mul(actualValue).div(priceInCents);
+        releaseTokens(_sender, fundingTokens);
+        LogFundingReceived(_sender, actualValue, totalRaised);
+        checkIfFundingCompleteOrExpired();
+        return contributions.length - 1;
+    }
+
+    //************************************************************************************/
+    // To check if funding is given to the founders or the beneficiaries
+
+    function checkIfFundingCompleteOrExpired()
+    private
+    {
+        if (fundingMaximumTargetInCents != 0 && totalRaisedInCents >= fundingMaximumTargetInCents) {
+            state = State.Successful;
+            LogFundingSuccessful(totalRaised);
+            payOut();
+            completedAt = now;
+
+        } else if ( now > DEADLINE ) {
+            if(totalRaisedInCents >= fundingMinimumTargetInCents) {
+                state = State.Successful;
+                LogFundingSuccessful(totalRaised);
+                payOut();
+                completedAt = now;
+            } else {
+                state = State.Failed;
+                completedAt = now;
+            }
+        }
+    }
+
+    function getPayOut()
+    public
+    onlyAdmin
+    {
+        checkIfFundingCompleteOrExpired();
+    }
+
+    function getRefund()
+    inRefundPeriod
+    public
+    {
+        checkIfFundingCompleteOrExpired();
+        callGetRefund();
+    }
+
+    function payOut()
+    private
+    inState(State.Successful)
+    {
+        if(!beneficiary.send(this.balance)) {
+            revert();
+        }
+
+        state = State.Closed;
+        LogWinnerPaid(beneficiary);
+    }
+
+    function callGetRefund()
+	private
+	inState(State.Failed)
+	{
+		for(uint i=0; i<contributions.length; i++) {
+
+            if(contributions[i].contributor == msg.sender) {
+				uint256 amountToRefund = contributions[i].amount;
+				contributions[i].amount = 0;
+
+            	if(!contributions[i].contributor.send(amountToRefund)) {
+					contributions[i].amount = amountToRefund;
+					revert();
+				} else {
+					totalRaised = totalRaised.sub(amountToRefund);
+				}
+			}
+		}
+	}
+
+    function removeContract()
+	public
+    refundPeriodExpired
+	onlyAdmin
+	{
+		selfdestruct(beneficiary);
+	}
+
+    function () payable {}
+
+    function GetContractState()
+    public
+    onlyAdmin
+    returns (uint)
+    {
+        checkIfFundingCompleteOrExpired();
+        uint num = uint(state);
+        return num;
+    }
+
+    function GetStartDate()
+    public
+    constant
+    onlyAdmin
+    returns (uint256)
+    {
+        return START_DATE;
+    }
+
+    function GetContractStateForFundraising()
+    public
+    onlyAdmin
+    returns (uint)
+    {
+        uint num = uint(State.Fundraising);
+        return num;
+    }
+
+    function GetBeneficiaryAddress()
+    public
+    onlyAdmin
+    returns (address)
+    {
+        return beneficiary;
+    }
+}
