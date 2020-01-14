@@ -8,7 +8,10 @@ It took me 4 months to deliver this product. It was very good learning experienc
 #### Technologies: Vue.js, Solidity, Python, Truffle, Metamask.
 
 It is rather spaghett code so it might be very difficult to read and work on. But it works ;)
-If you want to check Frontent then go to Ethereum-Frontend and run npm install and then npm run dev
+If you want to check Frontent then go to Ethereum-Frontend and run 
+`npm install`
+and then 
+`npm run dev`
 You should be able to see game screen. It is not going to work since you still need backend process working and smart contract
 deployed. Starting backend is bit more difficult because you need to create databse. It should be postgres. There is migration file
 to use to create schema. Smart contract is in folder 2. Make a flat file and deploy it on some chain. 
